@@ -4,8 +4,7 @@ import { useContext } from "react";
 const History = () => {
   const { history } = useContext(AuthContext);
 
-  console.log(history); // Debugging log
-
+  console.log(history);
   return (
     <div className="min-h-screen bg-gray-900 text-white flex flex-col items-center py-10">
       <h1 className="text-3xl font-bold mb-6">History</h1>

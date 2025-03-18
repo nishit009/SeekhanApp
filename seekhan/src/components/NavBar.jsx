@@ -4,17 +4,32 @@ import { AuthContext } from "./AuthorContext";
 import { NavLink } from "react-router-dom";
 import logoimg1 from "./assets/updated_logo.png";
 import profileLogo from "./assets/R.png";
+import axios from "axios";
 
 function NavBar() {
   const navigate = useNavigate();
   const [isDropdownOpen, setDropdownOpen] = useState(false); // Dropdown state
+  const { setHistory, userId } = useContext(AuthContext);
   const openSignup = () => {
     navigate("/Signup");
   };
 
-  const { isLoggedIn, logout, isAdmin,username } = useContext(AuthContext);
+  const { isLoggedIn, logout, isAdmin, username } = useContext(AuthContext);
 
   const toggleDropdown = () => setDropdownOpen(!isDropdownOpen);
+  const updateTheHistory = async () => {
+    try {
+      const getHistory = await axios.get(
+        `http://localhost:6969/getHistory/${userId}`
+      );
+      const response = getHistory.data.message;
+      setHistory(response);
+      console.log(`succesfully fetched the backup data ${response}`);
+      navigate("/History");
+    } catch (error) {
+      console.log(`unsuccessfull in fetching data ${error} `);
+    }
+  };
 
   return (
     <nav className="w-full h-[80px] px-[50px] flex items-center justify-between bg-[#002D62] text-white">
@@ -98,11 +113,11 @@ function NavBar() {
                   className="absolute right-0 mt-2 w-48 bg-[#002D62] text-white rounded shadow-lg z-50"
                   onMouseLeave={() => setDropdownOpen(false)}
                 >
-                 <div className="block w-full text-left px-4 py-2 bg-black">
+                  <div className="block w-full text-left px-4 py-2 bg-black">
                     welcome {username} !
                   </div>
                   <button
-                    onClick={() => navigate("/history")}
+                    onClick={updateTheHistory}
                     className="block w-full text-left px-4 py-2 hover:bg-black"
                   >
                     History
@@ -111,7 +126,6 @@ function NavBar() {
                     onClick={() => navigate("/ChangePassword")}
                     className="block w-full text-left px-4 py-2 hover:bg-black"
                   >
-
                     Change Password
                   </button>
                 </div>

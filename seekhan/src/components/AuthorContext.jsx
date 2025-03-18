@@ -48,11 +48,6 @@ export const AuthProvider = ({ children }) => {
       localStorage.setItem("userId", userId);
       setIsLoggedIn(true);
       setUserId(userId);
-      const getHis = await axios.get(
-        `http://localhost:6969/getHistory/${userId}`
-      );
-      const restoring = getHis.data.message;
-      setHistory(restoring);
     } catch (error) {
       console.log(`error in seting the history ${error}`);
     }
@@ -61,14 +56,6 @@ export const AuthProvider = ({ children }) => {
   // Handles user logout
   const logout = async () => {
     try {
-      console.log(history);
-      const resHis = await axios.put(
-        `http://localhost:6969/storeHistory/${userId}`,
-        {
-          history,
-        }
-      );
-      console.log(resHis.data.message);
       localStorage.removeItem("token");
       localStorage.removeItem("isAdmin");
       localStorage.removeItem("userId");
@@ -86,13 +73,18 @@ export const AuthProvider = ({ children }) => {
   };
 
   // Adds a question-answer pair to the history
-  const addToHistory = (question, answer) => {
-    const newEntry = { question, answer };
-    setHistory((prev) => {
-      const updatedHistory = [...prev, newEntry];
-      localStorage.setItem("history", JSON.stringify(updatedHistory));
-      return updatedHistory;
-    });
+  const addToHistory = async (question, answer) => {
+    try {
+      const newEntry = { question, answer };
+      setHistory((prev) => [...prev, newEntry]);
+      const putResponse = await axios.put(
+        `http://localhost:6969/storeHistory/${userId}`,
+        { history }
+      );
+      console.log(putResponse.data.message);
+    } catch (error) {
+      console.log(`couldnt update the history ${error}`);
+    }
   };
   const addusername = (firstName) => {
     setUsername(firstName);
@@ -112,6 +104,8 @@ export const AuthProvider = ({ children }) => {
         addusername,
         username,
         setUsername,
+        userId,
+        setHistory,
       }}
     >
       {children}
