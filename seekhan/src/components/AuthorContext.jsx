@@ -76,14 +76,28 @@ export const AuthProvider = ({ children }) => {
   const addToHistory = async (question, answer) => {
     try {
       const newEntry = { question, answer };
-      setHistory((prev) => [...prev, newEntry]);
-      const putResponse = await axios.put(
-        `http://localhost:6969/storeHistory/${userId}`,
-        { history }
-      );
-      console.log(putResponse.data.message);
+
+      // Use the functional form of setHistory to get the latest state
+      setHistory((prev) => {
+        const updatedHistory = [...prev, newEntry];
+
+        // Store the updated history in localStorage
+        localStorage.setItem("history", JSON.stringify(updatedHistory));
+
+        // Send the updated history to the backend
+        axios
+          .put(`http://localhost:6969/storeHistory/${userId}`, {
+            history: updatedHistory, // Use the updated history
+          })
+          .then((response) => console.log(response.data.message))
+          .catch((error) =>
+            console.log(`Error updating history on backend: ${error}`)
+          );
+
+        return updatedHistory; // Update state with the new history
+      });
     } catch (error) {
-      console.log(`couldnt update the history ${error}`);
+      console.log(`Couldn't update the history: ${error}`);
     }
   };
   const addusername = (firstName) => {

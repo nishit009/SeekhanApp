@@ -23,11 +23,17 @@ function NavBar() {
         `http://localhost:6969/getHistory/${userId}`
       );
       const response = getHistory.data.message;
+
+      // Update state
       setHistory(response);
-      console.log(`succesfully fetched the backup data ${response}`);
+
+      // Store the history in localStorage
+      localStorage.setItem("history", JSON.stringify(response));
+
+      console.log("Successfully fetched and stored the backup data:", response);
       navigate("/History");
     } catch (error) {
-      console.log(`unsuccessfull in fetching data ${error} `);
+      console.log("Unsuccessful in fetching data:", error);
     }
   };
 
