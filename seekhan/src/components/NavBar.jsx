@@ -129,7 +129,7 @@ function NavBar() {
                     History
                   </button>
                   <button
-                    onClick={() => navigate("/ChangePassword")}
+                    onClick={() => navigate("/Verifymail")}
                     className="block w-full text-left px-4 py-2 hover:bg-black"
                   >
                     Change Password

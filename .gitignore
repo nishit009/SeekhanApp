@@ -7,3 +7,4 @@ pnpm-debug.log
 *.gguf
 llamato/seekhan/
 llamato/__pycache__/
+.env

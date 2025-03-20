@@ -10,6 +10,9 @@ import os from "os";
 import path from "path";
 import bcrypt from "bcrypt";
 import { HistoryModel } from "./models/history.models.js";
+import generateOtp from "./generateOTP.js";
+import "dotenv/config";
+import nodemailer from "nodemailer";
 
 const app = express();
 const PORT = 6969;
@@ -21,6 +24,13 @@ app.use(
     credentials: true,
   })
 );
+const jason = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.PASS_USER,
+  },
+});
 const upload = multer({ dest: "temp/" });
 connectDB()
   .then(() => {
@@ -221,5 +231,59 @@ app.get("/getName/:email", async (req, res) => {
     res.status(200).send({ data: user.firstname });
   } catch (error) {
     res.status(500).send({ error: error });
+  }
+});
+
+app.get("/getOtp/:userId/:email", async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const email = req.params.email;
+    const existinguser = await User.findOne({ _id: userId });
+    console.log(existinguser);
+    if (existinguser.email === email) {
+      const otp = generateOtp();
+      const mailoptions = {
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: "SEEKHAN ASKS YOU IF YOU NEED A CHANGE IN PASSWORD",
+        text: `if so please use this as the conformation code ${otp}`,
+      };
+      await jason.sendMail(mailoptions);
+      console.log(`Verification code sent to ${email}: ${otp}`);
+      res.status(200).send({ data: otp });
+    } else {
+      res.status(400).send({ data: "This email is not recognized as user" });
+    }
+  } catch (error) {
+    res.status(500).send({ error: error });
+  }
+});
+
+app.put("/setPassword/:userId", async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const newPassword = req.body.password; // Ensure "password" is sent from frontend
+
+    if (!newPassword) {
+      return res.status(400).json({ error: "Password is required" });
+    }
+
+    // Hash the password manually since `findByIdAndUpdate` does not trigger pre-save hooks
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+    // Update password in database
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      { password: hashedPassword },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    res.status(200).json({ message: "Password updated successfully" });
+  } catch (error) {
+    res.status(500).json({ error: `Password update failed: ${error.message}` });
   }
 });

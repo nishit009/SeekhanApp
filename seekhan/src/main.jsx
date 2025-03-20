@@ -16,6 +16,7 @@ import FineTune from "./components/quizComponents/FineTune.jsx";
 import { AuthProvider } from "./components/AuthorContext.jsx";
 import History from "./components/History.jsx";
 import Git from "./components/Git.jsx";
+import Verifymail from "./components/Verifymail.jsx";
 import ChangePassword from "./components/ChangePassword.jsx";
 
 const router = createBrowserRouter([
@@ -38,7 +39,8 @@ const router = createBrowserRouter([
       { path: "signup", element: <Signup /> },
       { path: "git", element: <Git /> },
       { path: "history", element: <History /> },
-      { path: "ChangePassword", element: <ChangePassword /> },
+      { path: "Verifymail", element: <Verifymail /> },
+      { path: "Verifymail/ChangePassword", element: <ChangePassword /> },
     ],
   },
 ]);
