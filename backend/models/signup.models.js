@@ -18,6 +18,7 @@ const signSchema = new mongoose.Schema(
       trim: true,
       type: String,
       index: true,
+      unique: true,
     },
     phoneno: {
       type: Number,

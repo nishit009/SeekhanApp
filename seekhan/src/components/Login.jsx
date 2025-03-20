@@ -1,7 +1,9 @@
 import { useEffect, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthorContext";
+import axios from "axios";
 function Login() {
+  const { addusername } = useContext(AuthContext);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
@@ -30,8 +32,11 @@ function Login() {
         console.log(result);
         login(result.message, result.userid);
         alert("Login successful! Redirecting to home page...");
-        navigate("/home");
       }
+      const name = await axios.get(`http://localhost:6969/getName/${email}`);
+      addusername(name.data.data);
+      console.log(name.data);
+      navigate("/home");
     } catch (error) {
       console.log(`Error occurred: ${error.message}`);
       alert("An error occurred. Please try again later.");

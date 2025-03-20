@@ -37,6 +37,7 @@ app.post("/login", async (req, res) => {
 
   try {
     const user = await User.findOne({ email: emailId });
+    console.log(user);
     if (!user) {
       console.log(user);
       return res
@@ -209,5 +210,16 @@ app.get("/getHistory/:userId", async (req, res) => {
     }
   } catch (error) {
     console.log(`error in seting the history ${error}`);
+  }
+});
+
+app.get("/getName/:email", async (req, res) => {
+  try {
+    const Email = req.params.email;
+    const user = await sign.findOne({ email: Email });
+    console.log(user);
+    res.status(200).send({ data: user.firstname });
+  } catch (error) {
+    res.status(500).send({ error: error });
   }
 });

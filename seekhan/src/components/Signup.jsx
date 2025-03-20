@@ -9,7 +9,7 @@ function Signup() {
   const [gender, setGender] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
-  const { login,addusername } = useContext(AuthContext);
+  const { login, addusername } = useContext(AuthContext);
   const handleSubmit = (e) => {
     e.preventDefault(); // Prevent the default form submission behavior
     sendData(); // Now call sendData to send the form data
@@ -33,9 +33,7 @@ function Signup() {
       const result = await response.json();
       if (result.success) {
         alert("Signup successful! Redirecting to login page...");
-        addusername(firstname)
         navigate("/login");
-
       } else {
         alert(result.message || "Signup failed. Please try again.");
       }
