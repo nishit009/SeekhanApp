@@ -12,12 +12,13 @@ function Signup() {
   const navigate = useNavigate();
   const [checkValidEmail, setCheckValidEmail] = useState(true);
   const { login, addusername } = useContext(AuthContext);
-  const handleSubmit = (e) => {
-    if (confirmEmail()) {
-      // Prevent the default form submission behavior
-      e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    const emailResponse = await confirmEmail();
+    if(emailResponse){
       sendData();
-    } else {
+    }
+    else {
       setCheckValidEmail(false);
     }
   };
