@@ -2,6 +2,7 @@ import React, { useEffect, useState, useContext } from "react";
 import downloadFile from "../assets/downloadFile.png";
 import axios from "axios";
 import { AuthContext } from "../AuthorContext";
+import {Copy} from "lucide-react";
 
 function Rag() {
   const [details, setDetails] = useState({
@@ -51,7 +52,12 @@ function Rag() {
       let prompt = `generate ${details.numberOfQuestions} ${details.questionType} from this file ${details.file}`;
       addToHistory(prompt, answers);
     } catch (error) {
-      console.log(`error is this in post request ${error}`);
+      const errorMessage = error;
+      setDetails((prev) => ({
+        ...prev,
+        answers: errorMessage,
+      }));
+      setOutput((prev) => [...prev, { ...details, errorMessage }]);
     }
     setDetails((prev) => ({ ...prev, loading: false }));
   };
@@ -83,7 +89,10 @@ function Rag() {
           {output.map((value, index) => (
             <div key={index}>
               <label>{value.mainQuestion}</label>
-              <p>{value.answers}</p>
+              <p className="bg-[#DADADA] rounded-lg m-4 text-lg text-[#002D62]">
+                {value.answers}
+              </p>
+              <button>{Copy}</button>
             </div>
           ))}
         </div>

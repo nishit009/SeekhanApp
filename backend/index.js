@@ -13,6 +13,7 @@ import { HistoryModel } from "./models/history.models.js";
 import generateOtp from "./generateOTP.js";
 import "dotenv/config";
 import nodemailer from "nodemailer";
+import axios from "axios";
 
 const app = express();
 const PORT = 6969;
@@ -41,6 +42,43 @@ connectDB()
   .catch((error) => {
     console.log(`MongoDB connection failed:${error}`);
   });
+
+app.post("/confirmMail", async (req, res) => {
+  try {
+    const { email, username } = req.body;
+    const verifyRes = await axios.get(`https://apilayer.net/api/check`, {
+      params: {
+        access_key: process.env.MAILBOXER_API,
+        email: email,
+      },
+    });
+
+    if (!verifyRes.data.smtp_check) {
+      return res
+        .status(400)
+        .json({ message: "Email likely to bounce (invalid)" });
+    }
+
+    // Step 2: Proceed to send mail
+    const mailoptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "WELCOME TO SEEKHAN",
+      text: `${username}, this is just to confirm you logged into Seekhan!`,
+    };
+
+    const respy = await jason.sendMail(mailoptions);
+
+    if (respy.rejected.length > 0) {
+      return res.status(400).json({ message: "Mail was rejected by SMTP." });
+    }
+
+    res.status(200).json({ message: "Mail sent successfully" });
+  } catch (error) {
+    console.error("Error sending mail:", error);
+    res.status(500).json({ message: "Server error", error });
+  }
+});
 
 app.post("/login", async (req, res) => {
   const { emailId, HashPw } = req.body;

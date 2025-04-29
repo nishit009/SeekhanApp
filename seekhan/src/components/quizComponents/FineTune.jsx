@@ -26,8 +26,12 @@ function FineTune() {
     setError(null);
 
     try {
-      const response=await axios.post("http://127.0.0.1:5000/submit",{Topic:topic,noQ:question,Type:type})
-      setAnswers((prev)=>([...prev,response.data.message]));
+      const response = await axios.post("http://127.0.0.1:5000/submit", {
+        Topic: topic,
+        noQ: question,
+        Type: type,
+      });
+      setAnswers((prev) => [...prev, response.data.message]);
       pushPrompt(response.data.message);
 
       // if (response.ok) {
@@ -92,7 +96,7 @@ function FineTune() {
               </h3>
               {answers.map((value, index) => (
                 <div className="bg-gray-600 p-2 mb-2 rounded-lg" key={index}>
-                  <p>{value}</p>
+                  <p>{value.question}</p>
                 </div>
               ))}
             </div>
@@ -169,7 +173,7 @@ function FineTune() {
               <img
                 src={downloadFile}
                 alt="Download File"
-                className="w-[50px] h-[50px] mt-5"
+                className="w-[50px] h-[50px] mt-6 ml-[15px]"
               />
             </button>
           </div>

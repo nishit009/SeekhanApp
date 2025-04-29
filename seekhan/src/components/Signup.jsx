@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthorContext";
+import axios from "axios";
 function Signup() {
   const [firstname, setFirstname] = useState("");
   const [lastname, setLastname] = useState("");
@@ -9,11 +10,40 @@ function Signup() {
   const [gender, setGender] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
+  const [checkValidEmail, setCheckValidEmail] = useState(true);
   const { login, addusername } = useContext(AuthContext);
   const handleSubmit = (e) => {
-    e.preventDefault(); // Prevent the default form submission behavior
-    sendData(); // Now call sendData to send the form data
+    if (confirmEmail()) {
+      // Prevent the default form submission behavior
+      e.preventDefault();
+      sendData();
+    } else {
+      setCheckValidEmail(false);
+    }
   };
+  const confirmEmail = async () => {
+    try {
+      const response = await axios.post("http://localhost:6969/confirmMail", {
+        email,
+        firstname,
+      });
+
+      if (response.status === 200) {
+        console.log("✅ Mail sent successfully");
+        return true;
+      } else {
+        console.log("⚠️ Mail was not sent");
+        return false;
+      }
+    } catch (error) {
+      console.error(
+        "❌ Error:",
+        error.response?.data?.message || error.message
+      );
+      return false;
+    }
+  };
+
   async function sendData() {
     try {
       const response = await fetch("http://localhost:6969/signup", {
@@ -44,8 +74,12 @@ function Signup() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900">
       <div className="bg-gray-800 p-8 rounded shadow-md w-full max-w-md">
-        <h2 className="text-2xl font-bold text-white text-center mb-6">
-          Sign Up
+        <h2
+          className={`text-2xl font-bold ${
+            checkValidEmail ? "text-white" : "text-red-600"
+          } text-center mb-6`}
+        >
+          {checkValidEmail ? "Signup" : "Invalid email"}
         </h2>
         <form onSubmit={handleSubmit}>
           {/* First Name */}

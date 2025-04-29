@@ -12,11 +12,11 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_ollama import OllamaEmbeddings
 from PyPDF2 import PdfReader
 from chromadb.config import Settings
-from RAG import extract_text_from_pdf,ollama_llm,rag_chain,format_docs
-# voice rag function import 
+from RAG import extract_text_from_pdf,ollama_llm,rag_chain,format_docs 
 from VoiceRAG import transcribe_audio,ollama_llm,rag_chain,format_docs
 from langchain_community.vectorstores import FAISS
 import warnings
+import re
 
 os.environ["TF_ENABLE_ONEDNN_OPTS"] = "0" 
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"  
@@ -119,7 +119,44 @@ def submit():
             result = model.invoke(input=prompt)
             torch.cuda.empty_cache()
             logging.info(f"Questions generated successfully for topic: {topic} result: {result}")
-            return jsonify({"message": result})
+            question_blocks = re.split(r'\n?(Question \d+:)', result)
+
+            questions_list = []
+
+            for i in range(1, len(question_blocks), 2):
+                question_text = question_blocks[i] + " " + question_blocks[i + 1]  # Merge question number and content
+
+                # Extract answer
+                answer_match = re.search(r'Answer:\s*(.*)', question_text, re.IGNORECASE)
+                answer = answer_match.group(1).strip() if answer_match else None
+
+                # Remove answer from question text
+                question_text = re.sub(r'Answer:.*', '', question_text, flags=re.IGNORECASE).strip()
+
+                # Extract options as a list
+                options = re.findall(r'[a-d]\)\s(.*)', question_text)
+
+                # Remove options from question text
+                question_text = re.sub(r'[a-d]\)\s.*', '', question_text).strip()
+
+                # Determine question type
+                if options:
+                    question_type = "multiple_choice"
+                elif "True or False" in question_text:
+                    question_type = "true_false"
+                elif "______" in question_text:
+                    question_type = "fill_in_the_blank"
+                else:
+                    question_type = "other"
+
+                # Store structured question
+                questions_list.append({
+                    "question": question_text,
+                    "options": options if options else None,
+                    "answer": answer,
+                    "type": question_type
+                })
+            return jsonify({"message":questions_list})
         else:
             torch.cuda.empty_cache()
             return jsonify({"message":f"Sorry, the topic '{topic}' is out of the domain of computer science. Try again with a relevant topic."})
@@ -265,7 +302,7 @@ def rag():
         
     except Exception as e:
         logging.error(f"Error generating questions: {e}")
-        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+        return jsonify({"error": f"Oops!! we are having some internal issue 😒.Please use other AI-ML techniques .Hope you are satisfied : {str(e)}"}), 500
         
 # def file():
 #     try:
