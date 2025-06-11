@@ -5,6 +5,7 @@ import { NavLink } from "react-router-dom";
 import logoimg1 from "./assets/updated_logo.png";
 import profileLogo from "./assets/R.png";
 import axios from "axios";
+import axiosInstance from "./axiosInstancs.js";
 
 function NavBar() {
   const navigate = useNavigate();
@@ -19,21 +20,25 @@ function NavBar() {
   const toggleDropdown = () => setDropdownOpen(!isDropdownOpen);
   const updateTheHistory = async () => {
     try {
-      const getHistory = await axios.get(
-        `http://localhost:6969/getHistory/${userId}`
+      const getHistory = await axiosInstance.get(
+        `http://localhost:6969/getHistory/${userId}`,
+        { withCredentials: true }
       );
-      const response = getHistory.data.message;
 
-      // Update state
+      // Corrected: access 'history' field, not 'message'
+      let response = getHistory.data.history;
+
+      if (!Array.isArray(response)) {
+        response = [];
+      }
+
       setHistory(response);
-
-      // Store the history in localStorage
       localStorage.setItem("history", JSON.stringify(response));
+      console.log("Successfully fetched and stored history:", response);
 
-      console.log("Successfully fetched and stored the backup data:", response);
       navigate("/History");
     } catch (error) {
-      console.log("Unsuccessful in fetching data:", error);
+      console.error("Failed to fetch history:", error);
     }
   };
 

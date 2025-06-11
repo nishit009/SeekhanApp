@@ -1,5 +1,6 @@
 import React, { createContext, useState, useEffect } from "react";
 import axios from "axios";
+import axiosInstance from "./axiosInstancs";
 
 export const AuthContext = createContext();
 
@@ -7,7 +8,7 @@ export const AuthProvider = ({ children }) => {
   const [username, setUsername] = useState("");
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [history, setHistory] = useState([]); // Stores the history of prompt-result pairs
+  const [history, setHistory] = useState([]);
   const [userId, setUserId] = useState(null);
   const [qAndAns, setQAndAns] = useState({
     question: "",
@@ -15,7 +16,7 @@ export const AuthProvider = ({ children }) => {
   });
 
   useEffect(() => {
-    const storedToken = localStorage.getItem("token");
+    const storedToken = localStorage.getItem("accessToken");
     const storedUserId = localStorage.getItem("userId");
     const isAdminStored = localStorage.getItem("isAdmin") === "true";
     const storedHistory = localStorage.getItem("history");
@@ -25,38 +26,69 @@ export const AuthProvider = ({ children }) => {
       setIsLoggedIn(true);
       setIsAdmin(isAdminStored);
       setUserId(storedUserId);
+
       if (storedHistory) {
-        setHistory(JSON.parse(storedHistory));
+        try {
+          const parsedHistory = JSON.parse(storedHistory);
+          setHistory(Array.isArray(parsedHistory) ? parsedHistory : []);
+        } catch (e) {
+          console.warn("Invalid history in localStorage, clearing it:", e);
+          setHistory([]);
+          localStorage.removeItem("history");
+        }
       }
+
       if (storedUsername) {
         setUsername(storedUsername);
       }
     }
   }, []);
 
-  // Helper to generate a token (for demonstration)
-  const generateToken = () => Date.now();
-
-  // Handles user login
-  const login = async (result, userId) => {
+  const login = async (role, userId, refreshToken, accessToken) => {
     try {
-      const isAdminFlag = result === "admin";
+      const isAdminFlag = role === "admin";
       setIsAdmin(isAdminFlag);
       localStorage.setItem("isAdmin", isAdminFlag);
-      const token = generateToken();
-      localStorage.setItem("token", token);
+      localStorage.setItem("accessToken", accessToken);
+      localStorage.setItem("refreshToken", refreshToken);
       localStorage.setItem("userId", userId);
-      setIsLoggedIn(true);
       setUserId(userId);
     } catch (error) {
-      console.log(`error in seting the history ${error}`);
+      console.error("Error during login setup:", error);
     }
   };
 
-  // Handles user logout
+  const refreshToken = async () => {
+    try {
+      const res = await fetch("http://localhost:6969/refresh-token", {
+        method: "POST",
+        credentials: "include",
+      });
+
+      const data = await res.json();
+      if (res.ok) {
+        console.log("Access token refreshed!");
+      } else {
+        console.warn("Refresh token failed:", data.message);
+        logout();
+      }
+    } catch (error) {
+      console.error("Token refresh error:", error);
+      logout();
+    }
+  };
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshToken();
+    }, 5 * 60 * 1000); // every 5 minutes
+
+    return () => clearInterval(interval);
+  }, []);
+
   const logout = async () => {
     try {
-      localStorage.removeItem("token");
+      localStorage.removeItem("accessToken");
       localStorage.removeItem("isAdmin");
       localStorage.removeItem("userId");
       localStorage.removeItem("history");
@@ -68,42 +100,34 @@ export const AuthProvider = ({ children }) => {
       setUsername("guest");
       window.location.href = "/";
     } catch (error) {
-      console.log(`error in seting the history ${error}`);
+      console.error("Error during logout:", error);
     }
   };
 
-  // Adds a question-answer pair to the history
   const addToHistory = async (question, answer) => {
     try {
       const newEntry = { question, answer };
 
-      // Use the functional form of setHistory to get the latest state
-      setHistory((prev) => {
-        const updatedHistory = [...prev, newEntry];
+      // Optimistically update UI
+      setHistory((prevHistory) => [...prevHistory, newEntry]);
 
-        // Store the updated history in localStorage
-        localStorage.setItem("history", JSON.stringify(updatedHistory));
+      // Send only the new entry to the server
+      const responseServer = await axiosInstance.put(
+        `http://localhost:6969/storeHistory/${userId}`,
+        newEntry
+      );
 
-        // Send the updated history to the backend
-        axios
-          .put(`http://localhost:6969/storeHistory/${userId}`, {
-            history: updatedHistory, // Use the updated history
-          })
-          .then((response) => console.log(response.data.message))
-          .catch((error) =>
-            console.log(`Error updating history on backend: ${error}`)
-          );
-
-        return updatedHistory; // Update state with the new history
-      });
+      console.log(responseServer.data.message);
     } catch (error) {
-      console.log(`Couldn't update the history: ${error}`);
+      console.error("Couldn't update the history:", error);
     }
   };
+
   const addusername = (firstName) => {
     setUsername(firstName);
     localStorage.setItem("username", firstName);
   };
+
   return (
     <AuthContext.Provider
       value={{
@@ -112,7 +136,7 @@ export const AuthProvider = ({ children }) => {
         logout,
         isAdmin,
         history,
-        addToHistory, // Add questions and answers to history
+        addToHistory,
         qAndAns,
         setQAndAns,
         addusername,
@@ -120,6 +144,7 @@ export const AuthProvider = ({ children }) => {
         setUsername,
         userId,
         setHistory,
+        setIsLoggedIn,
       }}
     >
       {children}

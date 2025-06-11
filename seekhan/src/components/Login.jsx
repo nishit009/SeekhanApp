@@ -2,46 +2,50 @@ import { useEffect, useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "./AuthorContext";
 import axios from "axios";
+import axiosInstance from "./axiosInstancs";
 function Login() {
   const { addusername } = useContext(AuthContext);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const navigate = useNavigate();
-  const { login } = useContext(AuthContext);
-  async function sendData() {
+  const { login, setIsLoggedIn, setUsername } = useContext(AuthContext);
+  const sendData = async () => {
     try {
-      const response = await fetch("http://localhost:6969/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      const response = await axiosInstance.post(
+        "http://localhost:6969/login",
+        {
           emailId: email,
           HashPw: password,
-        }),
-      });
+        },
+        {
+          withCredentials: true, // Needed to allow cookies (refreshToken)
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
 
-      if (!response.ok) {
-        const errorResult = await response.json();
-        alert(errorResult.message || "An error occurred. Please try again.");
-        return;
-      }
+      const result = response.data;
 
-      const result = await response.json();
       if (result.success) {
-        console.log(result);
-        login(result.message, result.userid);
-        alert("Login successful! Redirecting to home page...");
+        // Store tokens and user info
+        login(
+          result.role,
+          result.userid,
+          result.accessToken,
+          result.refreshToken
+        );
+        setIsLoggedIn(true);
+        const responseTwo = await axios.get(
+          `http://localhost:6969/getName/${result.userid}`
+        );
+        setUsername(responseTwo.data.data);
+        navigate("/home");
       }
-      const name = await axios.get(`http://localhost:6969/getName/${email}`);
-      addusername(name.data.data);
-      console.log(name.data);
-      navigate("/home");
     } catch (error) {
-      console.log(`Error occurred: ${error.message}`);
-      alert("An error occurred. Please try again later.");
+      console.log(`${error} in sendData`);
     }
-  }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900">
@@ -71,9 +75,6 @@ function Login() {
             >
               Email Id
             </label>
-            <p className="text-sm text-red-500 mt-2 hidden peer-invalid:block">
-              Please enter a valid email
-            </p>
           </div>
           <div className="relative mb-6">
             <input

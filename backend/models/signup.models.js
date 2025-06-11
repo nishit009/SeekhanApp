@@ -1,5 +1,6 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
+import jwt from "jsonwebtoken";
 const signSchema = new mongoose.Schema(
   {
     firstname: {
@@ -46,4 +47,5 @@ signSchema.pre("save", async function (next) {
 signSchema.methods.isPasswordCorrect = async function (password) {
   return await bcrypt.compare(password, this.password);
 };
+
 export const sign = mongoose.model("sign", signSchema);

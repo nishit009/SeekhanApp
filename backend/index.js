@@ -4,24 +4,30 @@ import { prompt } from "./models/prompt.models.js";
 import connectDB from "./database.js";
 import { User } from "./models/login.models.js";
 import { sign } from "./models/signup.models.js";
+import mongoose from "mongoose";
 import fs from "fs";
 import multer from "multer";
 import os from "os";
 import path from "path";
 import bcrypt from "bcrypt";
-import { HistoryModel } from "./models/history.models.js";
+import HistoryModel from "./models/history.models.js";
 import generateOtp from "./generateOTP.js";
 import "dotenv/config";
 import nodemailer from "nodemailer";
 import axios from "axios";
+import { verifyAccessToken } from "./middleware/authenticate.js";
+import cookieParser from "cookie-parser";
+import jwt from "jsonwebtoken";
 
 const app = express();
 const PORT = 6969;
+
+app.use(cookieParser());
 app.use(express.json());
 app.use(
   cors({
     origin: ["http://localhost:5173", "http://127.0.0.1:5000"],
-    methods: ["POST", "GET", "PUT"],
+    methods: ["POST", "GET", "PUT", "OPTIONS"],
     credentials: true,
   })
 );
@@ -79,40 +85,67 @@ app.post("/confirmMail", async (req, res) => {
     res.status(500).json({ message: "Server error", error });
   }
 });
+app.post("/refresh-token", async (req, res) => {
+  const token = req.cookies.refreshToken;
+  if (!token)
+    return res.status(401).json({ message: "No refresh token provided" });
 
+  try {
+    const decoded = jwt.verify(token, process.env.REFRESH_TOKEN_SECRET);
+    const user = await User.findById(decoded._id);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const newAccessToken = await user.generateAccessToken();
+
+    res.cookie("accessToken", newAccessToken, {
+      httpOnly: true,
+      secure: process.env.PRODUCTION === "true",
+      sameSite: "Strict",
+      maxAge: 15 * 60 * 1000, // 15 minutes
+    });
+
+    return res.status(200).json({ message: "Access token refreshed" });
+  } catch (err) {
+    return res.status(403).json({ message: "Invalid refresh token" });
+  }
+});
 app.post("/login", async (req, res) => {
   const { emailId, HashPw } = req.body;
 
   try {
     const user = await User.findOne({ email: emailId });
-    console.log(user);
-    if (!user) {
-      console.log(user);
-      return res
-        .status(404)
-        .json({ success: false, message: "User not found" });
-    }
+    if (!user) return res.status(404).json({ message: "User not found" });
+
     const isPasswordValid = await bcrypt.compare(HashPw, user.password);
-    if (!isPasswordValid) {
-      console.log(isPasswordValid);
-      return res
-        .status(401)
-        .json({ success: false, message: "Invalid password" });
-    }
-    if (emailId === "admin@gmail.com" && HashPw === "iamadmin") {
-      return res
-        .status(200)
-        .json({ success: true, message: "admin", userid: user._id });
-    }
-    res.status(200).json({
+    if (!isPasswordValid)
+      return res.status(401).json({ message: "Invalid password" });
+
+    const accessToken = await user.generateAccessToken();
+    const refreshToken = await user.generateRefreshToken();
+
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      secure: process.env.PRODUCTION,
+      sameSite: "Strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    });
+    res.cookie("accessToken", accessToken, {
+      httpOnly: true,
+      secure: process.env.PRODUCTION,
+      sameSite: "Strict",
+      maxAge: 15 * 60 * 1000,
+    });
+
+    return res.status(200).json({
       success: true,
       message: "Login successful",
+      accessToken,
+      refreshToken, // Add this line if you want to access it from frontend
+      role: user.role,
       userid: user._id,
-      user,
     });
-  } catch (error) {
-    console.error(`Error during login: ${error.message}`);
-    res.status(500).json({ success: false, message: "Server error" });
+  } catch (err) {
+    res.status(500).json({ message: "Server error" });
   }
 });
 
@@ -135,6 +168,17 @@ app.post("/signup", async (req, res) => {
       password: HashPw,
     });
     const signsaved = await newSign.save();
+    if (emailId === "projectseekhan@gmail.com") {
+      const newUser = new User({
+        email: emailId,
+        password: HashPw,
+        role: "admin",
+      });
+      const saved = await newUser.save();
+      res
+        .status(201)
+        .json({ success: true, message: "Signup successful", user: newUser });
+    }
     const newUser = new User({
       email: emailId,
       password: HashPw,
@@ -226,45 +270,59 @@ app.post("/voicerag", upload.single("file"), async (req, res) => {
 });
 app.put("/storeHistory/:userid", async (req, res) => {
   try {
-    const userid = req.params.userid;
-    const { history } = req.body;
-    const checkIt = await HistoryModel.findOneAndUpdate(
-      {
-        userId: userid,
-      },
-      { historyRes: history },
+    const { userid } = req.params;
+    const newEntry = req.body;
+
+    // Validate userId
+    if (!mongoose.Types.ObjectId.isValid(userid)) {
+      return res.status(400).json({ message: "Invalid userId" });
+    }
+
+    // Validate entry format
+    if (!newEntry?.question || !newEntry?.answer) {
+      return res.status(400).json({ message: "Invalid entry format" });
+    }
+
+    // Append new entry to the user's history
+    const updatedHistory = await HistoryModel.findOneAndUpdate(
+      { userId: userid },
+      { $push: { historyRes: newEntry } },
       { upsert: true, new: true }
     );
-    console.log(`updated the model ${checkIt.historyRes}`);
-    res.status(200).json({ message: "saved it " });
+
+    console.log(`Updated history for user ${userid} ${updatedHistory}`);
+    res.status(200).json({ message: "History updated" });
   } catch (error) {
-    console.log(`error in seting the history ${error}`);
-  }
-});
-app.get("/getHistory/:userId", async (req, res) => {
-  try {
-    const userid = req.params.userId;
-    const findUser = await HistoryModel.findOne({ userId: userid });
-    if (findUser) {
-      console.log(findUser.historyRes);
-      res.status(200).json({ message: findUser.historyRes });
-    } else {
-      const newList = [];
-      const newHistory = new HistoryModel({
-        userId: userid,
-        historyRes: newList,
-      });
-      await newHistory.save();
-    }
-  } catch (error) {
-    console.log(`error in seting the history ${error}`);
+    console.error(`Error updating history: ${error}`);
+    res.status(500).json({ message: "Server error", error });
   }
 });
 
-app.get("/getName/:email", async (req, res) => {
+app.get("/getHistory/:userId", verifyAccessToken, async (req, res) => {
+  const { userId } = req.params;
+
   try {
-    const Email = req.params.email;
-    const user = await sign.findOne({ email: Email });
+    const historyDoc = await HistoryModel.findOne({ userId });
+    console.log(historyDoc.historyRes)
+
+    if (!historyDoc) {
+      return res.status(200).json({ history: [] }); // No history yet
+    }
+
+    // Return the actual history array
+    res.status(200).json({ history: historyDoc.historyRes });
+  } catch (error) {
+    console.error("Error fetching history:", error);
+    res.status(500).json({ message: "Server error", error });
+  }
+});
+
+app.get("/getName/:userId", async (req, res) => {
+  try {
+    const id = req.params.userId;
+    const loginUser = await User.findOne({ _id: id });
+    const user = await sign.findOne({ email: loginUser.email });
+
     console.log(user);
     res.status(200).send({ data: user.firstname });
   } catch (error) {

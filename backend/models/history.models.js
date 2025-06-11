@@ -3,13 +3,15 @@ import mongoose from "mongoose";
 const HistorySchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: "User", // Referencing User model
+    ref: "User",
     required: true,
   },
-  historyRes:{
-    type:Array,
-    required:true
-  }
+  historyRes: [
+    {
+      question: { type: String, required: true },
+      answer: { type: String, required: true },
+    },
+  ],
 });
 
-export const HistoryModel=mongoose.model("HistoryModel",HistorySchema)
+export default mongoose.model("History", HistorySchema);
